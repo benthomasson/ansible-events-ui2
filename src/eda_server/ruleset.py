@@ -86,6 +86,8 @@ async def activate_rulesets(
     local_working_directory = working_directory
     ensure_directory(local_working_directory)
 
+    logger.debug("activate_rulesets %s %s", activation_id, deployment_type)
+
     # TODO(ben): Change to enum
     if deployment_type == "local":
 
@@ -124,23 +126,27 @@ async def activate_rulesets(
         if deployment_type == "docker":
             host = "host.docker.internal"
 
-        container = await docker.containers.create(
-            {
-                "Cmd": [
-                    "ssh-agent",
-                    "ansible-events",
-                    "--worker",
-                    "--websocket-address",
-                    f"ws://{host}:{port}/api/ws2",
-                    "--id",
-                    str(activation_id),
-                ],
-                "Image": execution_environment,
-                "Env": ["ANSIBLE_FORCE_COLOR=True"],
-                "ExtraHosts": ["host.docker.internal:host-gateway"],
-            }
-        )
         try:
+            logger.debug('Creating container')
+            logger.debug('Host: %s', host)
+            logger.debug('Port: %s', port)
+            container = await docker.containers.create(
+                {
+                    "Cmd": [
+                        "ssh-agent",
+                        "ansible-events",
+                        "--worker",
+                        "--websocket-address",
+                        f"ws://{host}:{port}/api/ws2",
+                        "--id",
+                        str(activation_id),
+                    ],
+                    "Image": execution_environment,
+                    "Env": ["ANSIBLE_FORCE_COLOR=True"],
+                    "ExtraHosts": ["host.docker.internal:host-gateway"],
+                }
+            )
+            logger.debug('Starting container')
             await container.start()
         except aiodocker.exceptions.DockerError as e:
             logger.error("Failed to start container: %s", e)
